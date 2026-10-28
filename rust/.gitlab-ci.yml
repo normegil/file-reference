@@ -1,0 +1,134 @@
+variables:
+  CARGO_HOME: "$CI_PROJECT_DIR/.cargo"
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - .cargo/bin/
+    - .cargo/registry/index/
+    - .cargo/registry/cache/
+    - .cargo/git/db/
+    - target/
+
+stages:
+  - verify
+  - build
+  - release
+
+# Verify jobs - run on all pushes
+lint:
+  stage: verify
+  image: rust:latest
+  before_script:
+    - export PATH="$CI_PROJECT_DIR/.cargo/bin:$PATH"
+    - rustup component add clippy
+  script:
+    - cargo clippy --all-targets --all-features -- -D warnings
+
+test:
+  stage: verify
+  image: rust:latest
+  script:
+    - cargo test --all-features
+
+# SBOM generation - runs on all pushes, but also needed for releases
+sbom:
+  stage: verify
+  image: rust:latest
+  before_script:
+    - export PATH="$CI_PROJECT_DIR/.cargo/bin:$PATH"
+    - which cargo-cyclonedx || cargo install --locked cargo-cyclonedx
+  script:
+    - cargo cyclonedx -f json --all-features
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    paths:
+      - "zookeeper-cli.cdx.json"
+    expire_in: 1 week
+
+# Matrix build job
+build:
+  stage: build
+  image: rust:latest
+  parallel:
+    matrix:
+      - OS: ["linux"] # Windows fail due to unable to install 'gcc-mingw-w64-x86-64' or 'binutils-mingw-w64-x86-64'. Maybe create an image with baked in packages ?
+        FEATURE: ["readonly", "destructive", "tui"]
+  before_script:
+    - export PATH="$CI_PROJECT_DIR/.cargo/bin:$PATH"
+    - rustup target add x86_64-pc-windows-gnu
+    - rustup target add x86_64-unknown-linux-gnu
+  script:
+    - |
+      # Determine target and output filename
+      if [ "$OS" = "linux" ]; then
+        TARGET="x86_64-unknown-linux-gnu"
+        EXT=""
+      else
+        TARGET="x86_64-pc-windows-gnu"
+        EXT=".exe"
+      fi
+
+      # Determine cargo features
+      if [ "$FEATURE" = "readonly" ]; then
+        CARGO_FEATURES=""
+      elif [ "$FEATURE" = "destructive" ]; then
+        CARGO_FEATURES="--features destructive"
+      else
+        CARGO_FEATURES="--features tui"
+      fi
+
+      # Build
+      cargo build --no-default-features --release $CARGO_FEATURES --target $TARGET
+
+      # Create artifact directory
+      mkdir -p artifacts/$FEATURE/$OS
+
+      # Copy binary with proper name
+      if [ "$OS" = "linux" ]; then
+        BINARY_NAME="zookeeper-cli-${FEATURE}-${OS}"
+        cp target/$TARGET/release/zookeeper-cli artifacts/$FEATURE/$OS/$BINARY_NAME
+        SHA=$(sha256sum artifacts/$FEATURE/$OS/$BINARY_NAME | awk '{print $1}')
+        echo "$SHA" > artifacts/$FEATURE/$OS/${BINARY_NAME}.sha256
+      else
+        BINARY_NAME="zookeeper-cli-${FEATURE}-${OS}.exe"
+        cp target/$TARGET/release/zookeeper-cli.exe artifacts/$FEATURE/$OS/$BINARY_NAME
+        SHA=$(sha256sum artifacts/$FEATURE/$OS/$BINARY_NAME | awk '{print $1}')
+        echo "$SHA" > artifacts/$FEATURE/$OS/${BINARY_NAME}.sha256
+      fi
+  artifacts:
+    name: "$FEATURE-$OS"
+    paths:
+      - artifacts/$FEATURE/$OS/
+    expire_in: 1 week
+  rules:
+    - if: $CI_COMMIT_TAG
+
+# Create GitLab release with all artifacts
+create_release:
+  stage: release
+  image: gitlab/glab:latest
+  needs:
+    - build
+    - sbom
+  script:
+    # Flatten build artifacts into a single directory (glab uploads files, not directories)
+    - export GITLAB_HOST="${CI_SERVER_HOST:-gitlab.com}"
+    - mkdir -p all_artifacts
+    - ls -laR artifacts/
+    - find artifacts -type f -exec cp {} all_artifacts/ \;
+    - cp zookeeper-cli.cdx.json all_artifacts/zookeeper-cli-sbom.cdx.json
+    - ls -la all_artifacts/
+    # Authenticate with the CI job token.
+    # Do NOT run `glab auth status` here: it calls GET /user, an endpoint
+    # job tokens are not allowed to access, so it always fails with 401.
+    - glab auth login --job-token $CI_JOB_TOKEN
+    # --use-package-registry uploads assets to the generic package registry
+    # (accessible with the job token) instead of the project file-upload API,
+    # which job tokens cannot access.
+    - glab release create "$CI_COMMIT_TAG" all_artifacts/* --use-package-registry --package-name zookeeper-cli --notes "Automated release for $CI_COMMIT_TAG"
+  dependencies:
+    - build
+    - sbom
+  rules:
+    - if: $CI_COMMIT_TAG
