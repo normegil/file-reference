@@ -22,6 +22,12 @@ tasks:
     cmds:
       - cargo clippy --all-targets -- -D warnings
       - cargo fmt --check
+      - task: dylint
+
+  dylint:
+    desc: Run the custom dylint lints from ./rust/dylint
+    cmds:
+      - cargo dylint --path ./rust/dylint --all -- --all-targets -D warnings
 
   test:
     desc: Run the tests

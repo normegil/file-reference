@@ -1,0 +1,11 @@
+# Clippy configuration, enforced by `cargo clippy --all-targets -- -D warnings`
+# (task `lint`/`verify` in Taskfile.yml, CI `lint` job).
+#
+# Rule mapping:
+#   Commons-FN-4 (MUST): at most 3 function arguments
+too-many-arguments-threshold = 3
+
+#   Rust-ERR-1 (NEVER): no unwrap/expect/panic outside test code
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true

@@ -1,0 +1,6 @@
+# Workspace of the custom dylint lints enforcing the repo rules that
+# clippy/rustc cannot express. One crate per lint under lints/, so individual
+# lints can be copied into other repositories. See README.md.
+[workspace]
+resolver = "2"
+members = ["lints/*"]

@@ -1,0 +1,7 @@
+# Dylint libraries must be built with the exact nightly toolchain supported by
+# the pinned `dylint_linting` version. Keep this channel in sync with the
+# `dylint_linting` version in lints/*/Cargo.toml — see
+# https://github.com/tbrand/dylint for the toolchain matching each release.
+[toolchain]
+channel = "nightly-2025-06-01"
+components = ["rustc-dev", "llvm-tools-preview", "rust-src"]

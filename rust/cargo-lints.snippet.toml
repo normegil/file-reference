@@ -1,0 +1,32 @@
+# Merge this into the [lints] section of the crate Cargo.toml.
+# Enforced by `cargo clippy --all-targets -- -D warnings` and `cargo build`
+# (task lint/verify in Taskfile.yml, CI lint job).
+#
+# Rule mapping:
+#   Rust-ERR-1 (NEVER)          -> unwrap_used / expect_used / panic = deny
+#   Rust-CLI-1, Commons-O-1     -> print_stdout = deny (diagnostics on stderr only)
+#   Commons-D-1 (MUST)          -> missing_docs = deny
+#   Commons-T-7, Commons-TQ-4   -> no trivial assertions
+#   Commons-FN-4                -> see clippy.toml (too-many-arguments-threshold = 3)
+#   Commons-FN-2, Commons-C-3   -> covered by rustc warnings, fatal via -D warnings
+
+[lints.rust]
+missing_docs = "deny" # Commons-D-1: document public APIs
+
+[lints.clippy]
+unwrap_used = "deny"                 # Rust-ERR-1
+expect_used = "deny"                 # Rust-ERR-1
+panic = "deny"                       # Rust-ERR-1
+print_stdout = "deny"                # Rust-CLI-1 / Commons-O-1
+eq_op = "deny"                       # Commons-T-7 / Commons-TQ-4
+assertions_on_constants = "deny"     # Commons-T-7 / Commons-TQ-4
+absurd_extreme_comparisons = "deny"  # Commons-TQ-4
+missing_errors_doc = "warn"          # Commons-D-3
+missing_panics_doc = "warn"          # Commons-D-3
+cognitive_complexity = "warn"        # Commons-FN-1
+manual_map = "warn"                  # Rust-C-4
+manual_unwrap_or = "warn"            # Rust-C-4
+option_if_let_else = "warn"          # Rust-C-4
+redundant_clone = "warn"             # Rust-C-3
+clone_on_copy = "warn"               # Rust-C-3
+needless_borrow = "warn"             # Rust-C-3
