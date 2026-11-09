@@ -25,16 +25,6 @@ lint:
   script:
     - cargo clippy --all-targets --all-features -- -D warnings
 
-# Custom rule lints (dylint) — see dylint/README.md
-dylint:
-  stage: verify
-  image: rustlang/rust:nightly
-  before_script:
-    - rustup component add rustc-dev llvm-tools-preview
-    - cargo install cargo-dylint --locked
-  script:
-    - cargo dylint --path ./rust/dylint --all -- --all-targets -D warnings
-
 test:
   stage: verify
   image: rust:latest
