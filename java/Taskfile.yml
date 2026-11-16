@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+tasks:
+  check:
+    desc: Compile-check the project without packaging
+    cmds:
+      - mvn --batch-mode compile
+
+  format:
+    desc: Auto-format all Java source files with Spotless
+    cmds:
+      - mvn --batch-mode spotless:apply
+
+  lint:
+    desc: Run Checkstyle lints and verify formatting
+    sum: |
+        Lint the current project.
+
+        Will fail on warnings
+    cmds:
+      - mvn --batch-mode checkstyle:check
+      - mvn --batch-mode spotless:check
+
+  test:
+    desc: Run all tests
+    cmds:
+      - mvn --batch-mode test
+
+  audit:
+    desc: Scan dependencies for known security vulnerabilities
+    cmds:
+      - mvn --batch-mode org.owasp:dependency-check-maven:check
+
+  verify:
+    desc: Run check, lint, test, and audit
+    deps: [check, lint, test, audit]
+
+  sbom:
+    desc: Export a CycloneDX SBOM in JSON format
+    cmds:
+      - mvn --batch-mode org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom -DoutputFormat=json
+
+  build:
+    deps: [verify]
+    desc: Build the project (runs verify first)
+    cmds:
+      - mvn --batch-mode package -DskipTests
+
+  release:
+    desc: Package the project with SBOM (runs verify first)
+    deps: [verify, sbom]
+    cmds:
+      - mvn --batch-mode clean package -DskipTests
