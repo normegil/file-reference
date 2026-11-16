@@ -32,6 +32,16 @@ These are generic guidelines for all languages, which must be read and followed.
 - **Commons-T-5 (SHOULD)** Unit-test algorithmic logic, state transitions, and edge cases thoroughly.
 - **Commons-T-6 (SHOULD)** Parameterize test cases instead of duplicating test logic.
 - **Commons-T-7 (NEVER)** Add tests with trivial or self-fulfilling assertions (e.g., asserting hardcoded equality without exercising code).
+- **Commons-T-8 (MUST)** Add documentation to critical tests to record why the guard exists, like:
+```python
+def test_token_validated_before_db_lookup():
+    """
+    Regression: tokens must be validated before any DB call.
+    See commit a3f9c12 - DB-first validation caused race conditions
+    under load and unnecessary read pressure. This test ensures
+    expiry check stays upstream of the repository call.
+    """
+```
 
 #### 3.1 — Test Quality
 

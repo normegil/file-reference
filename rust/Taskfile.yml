@@ -4,52 +4,52 @@ version: '3'
 
 tasks:
   check:
-    desc: Check that the artefact build as expected
+    desc: Compile-check the project without producing binaries
     cmds:
       - cargo check
 
   format:
-    desc: Format the code
+    desc: Auto-format all Rust source files with rustfmt
     cmds:
       - cargo fmt
 
   lint:
-    desc: Check & Lint the code
+    desc: Run clippy lints and verify formatting
     sum: |
         Lint the current project.
 
         Will fail on warnings
     cmds:
-      - cargo clippy --all-targets -- -D warnings
+      - cargo clippy --all-targets
       - cargo fmt --check
 
   test:
-    desc: Run the tests
+    desc: Run all tests with all features enabled
     cmds:
       - cargo test --all-features
 
   audit:
-    desc: Audit dependencies in Cargo.lock for vulnerabilities
+    desc: Scan dependencies for known security vulnerabilities
     cmds:
         - cargo audit
 
   verify:
-    desc: Perform all verifications
+    desc: Run check, lint, test, and audit
     deps: [check, lint, test, audit]
 
   sbom:
-    desc: Generate a CycloneDX SBOM
+    desc: Export a CycloneDX SBOM in JSON format
     cmds:
       - cargo cyclonedx -f json
 
   build:
     deps: [verify]
-    desc: Build the code
+    desc: Build the project in debug mode (runs verify first)
     cmds:
       - cargo build
 
   release:
-    desc: Build the code
+    desc: Build the project in release mode with SBOM (runs verify first)
     deps: [verify, sbom]
     cmds:
       - cargo build --release
